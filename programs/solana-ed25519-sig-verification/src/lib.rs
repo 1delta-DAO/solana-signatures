@@ -6,16 +6,8 @@
 
 use anchor_lang::prelude::*;
 use solana_program::instruction::Instruction;
-use solana_program::keccak::Hash;
+use solana_program::pubkey::Pubkey;
 use solana_program::sysvar::instructions::{load_instruction_at_checked, ID as IX_ID};
-use solana_program::{
-    account_info::{next_account_info, AccountInfo},
-    entrypoint,
-    entrypoint::ProgramResult,
-    msg,
-    pubkey::Pubkey,
-};
-use sha3::{Digest, Keccak256};
 
 pub mod error;
 pub mod utils;
