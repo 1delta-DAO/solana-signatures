@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
-use solana_program::instruction::Instruction;
-use solana_program::ed25519_program::ID as ED25519_ID;
+use anchor_lang::solana_program::instruction::Instruction;
+use solana_sdk_ids::ed25519_program::ID as ED25519_ID;
 use crate::error::ErrorCode;
 
 use std::convert::TryInto;
