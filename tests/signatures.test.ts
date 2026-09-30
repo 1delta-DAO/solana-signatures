@@ -1,11 +1,11 @@
-import * as anchor from '@project-serum/anchor';
-import { Program } from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
+import { Program } from '@coral-xyz/anchor';
 import { Signatures } from '../target/types/signatures.ts';
 import * as ed from '@noble/ed25519';
 import * as assert from 'assert';
 
 describe('Solana signatures', () => {
-    const provider = anchor.getProvider();
+    const provider = anchor.AnchorProvider.env();
     anchor.setProvider(provider);
 
     const program = anchor.workspace.Signatures as Program<Signatures>;
@@ -58,18 +58,17 @@ describe('Solana signatures', () => {
             )
             .add(
                 // Our instruction
-                program.instruction.verifyEd25519(
-                    person.publicKey.toBuffer(),
-                    Buffer.from(MSG),
-                    Buffer.from(signature),
-                    {
-                        accounts: {
-                            sender: person.publicKey,
-                            ixSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
-                        },
-                        signers: [person],
-                    }
-                )
+                await program.methods
+                    .verifyEd25519(
+                        Array.from(person.publicKey.toBytes()),
+                        Buffer.from(MSG),
+                        Array.from(signature)
+                    )
+                    .accountsPartial({
+                        sender: person.publicKey,
+                        ixSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+                    })
+                    .instruction()
             );
 
         // Send tx
@@ -112,18 +111,17 @@ describe('Solana signatures', () => {
             )
             .add(
                 // Our instruction
-                program.instruction.verifyEd25519(
-                    person.publicKey.toBuffer(),
-                    Buffer.from(MSG),
-                    Buffer.from(signature),
-                    {
-                        accounts: {
-                            sender: person.publicKey,
-                            ixSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
-                        },
-                        signers: [person],
-                    }
-                )
+                await program.methods
+                    .verifyEd25519(
+                        Array.from(person.publicKey.toBytes()),
+                        Buffer.from(MSG),
+                        Array.from(signature)
+                    )
+                    .accountsPartial({
+                        sender: person.publicKey,
+                        ixSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+                    })
+                    .instruction()
             );
 
         // Send tx
@@ -133,15 +131,10 @@ describe('Solana signatures', () => {
                 tx,
                 [person]
             );
-        } catch (error: any) {
-            // No idea how to catch this error otherwise
-            assert.ok(
-                error
-                    .toString()
-                    .includes(
-                        'Transaction precompile verification failure InvalidAccountIndex'
-                    )
-            );
+        } catch (error: unknown) {
+            // The native precompile (instruction 0) must reject before our program runs.
+            assert.ok(error instanceof anchor.web3.SendTransactionError);
+            assert.match(error.transactionError?.message ?? '', /Instruction 0:/);
             return;
         }
 
@@ -155,18 +148,17 @@ describe('Solana signatures', () => {
         // instruction, our custom instruction will fail to execute.
         let tx = new anchor.web3.Transaction().add(
             // Our instruction
-            program.instruction.verifyEd25519(
-                person.publicKey.toBuffer(),
-                Buffer.from(MSG),
-                Buffer.from(signature),
-                {
-                    accounts: {
-                        sender: person.publicKey,
-                        ixSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
-                    },
-                    signers: [person],
-                }
-            )
+            await program.methods
+                .verifyEd25519(
+                    Array.from(person.publicKey.toBytes()),
+                    Buffer.from(MSG),
+                    Array.from(signature)
+                )
+                .accountsPartial({
+                    sender: person.publicKey,
+                    ixSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+                })
+                .instruction()
         );
 
         // Send tx
@@ -223,18 +215,17 @@ describe('Solana signatures', () => {
             )
             .add(
                 // Our instruction (fails due to introspection checks)
-                program.instruction.verifyEd25519(
-                    person.publicKey.toBuffer(),
-                    Buffer.from(MSG),
-                    Buffer.from(signature),
-                    {
-                        accounts: {
-                            sender: person.publicKey,
-                            ixSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
-                        },
-                        signers: [person],
-                    }
-                )
+                await program.methods
+                    .verifyEd25519(
+                        Array.from(person.publicKey.toBytes()),
+                        Buffer.from(MSG),
+                        Array.from(signature)
+                    )
+                    .accountsPartial({
+                        sender: person.publicKey,
+                        ixSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+                    })
+                    .instruction()
             );
 
         // Send tx

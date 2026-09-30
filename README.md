@@ -18,16 +18,28 @@ In doing so, these are the possible outcomes:
 
 ### Instruction introspection
 
-`solana_program` provides us with the [`load_instruction_at_checked`](https://docs.rs/solana-program/latest/solana_program/sysvar/instructions/fn.load_instruction_at_checked.html) function on the `Instructions Sysvar`, that allows us to recover the raw fields of an instruction at a given index (fields are `program_id, accounts, data`).
+`anchor_lang::solana_program::sysvar::instructions::load_instruction_at_checked` reads an instruction from the `Instructions Sysvar`, exposing its `program_id`, `accounts`, and `data`.
 In order for us to check that that instruction was constructed properly, we need to inspect the data byte array manually.
 
 ### Building and testing
 
-Install [Anchor](https://project-serum.github.io/anchor/getting-started/installation.html) first.
+Install Anchor CLI 0.32.1, Solana CLI 2.3.x, and Yarn 1.x. The on-chain program uses Anchor's modular Solana APIs rather than the old `solana-program` dependency. The lockfile pins transitive crates compatible with Solana 2.3's SBF Rust toolchain.
 
-There are two test files with the same concepts: one, signing using a Solana keypair (Ed25519 signatures); the other one, using an Ethereum Wallet (Secp256k1 signatures).
+The Ed25519 and Secp256k1 integration tests use only a disposable wallet and a local validator. Build the program and preload it at the declared program ID; the repository does **not** include the matching deployment keypair, so a normal `anchor test` deployment cannot preserve that ID.
 
 ```bash
-yarn install
-anchor test
+yarn install --frozen-lockfile
+anchor build
+TEST_DIR="$(mktemp -d)"
+solana-keygen new --no-bip39-passphrase --silent -o "$TEST_DIR/wallet.json"
+solana-test-validator --ledger "$TEST_DIR/ledger" \
+  --bpf-program DHxesXA69rUmz5AJ1CnLCQezUzQR5j7KKTwTp1zZPc9j target/deploy/signatures.so \
+  --rpc-port 8899 --quiet &
+VALIDATOR_PID=$!
+trap 'kill "$VALIDATOR_PID"' EXIT
+until solana --url http://127.0.0.1:8899 cluster-version >/dev/null 2>&1; do sleep 1; done
+ANCHOR_WALLET="$TEST_DIR/wallet.json" ANCHOR_PROVIDER_URL=http://127.0.0.1:8899 \
+  yarn ts-mocha -p ./tsconfig.json -t 100000 tests/*.test.ts
 ```
+
+Do not use production keys or submit these test transactions to a public network. Deploying at the existing program ID outside the local validator requires the original matching deployment keypair.

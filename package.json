@@ -1,17 +1,24 @@
 {
     "type": "module",
     "dependencies": {
+        "@coral-xyz/anchor": "^0.32.1",
         "@noble/ed25519": "^1.6.0",
-        "@project-serum/anchor": "^0.26.0",
-        "@solana/web3.js": "^1.95.0",
-        "ethers": "^5.6.2"
+        "@solana/web3.js": "^1.99.0",
+        "ethers": "^6.17.0"
     },
     "devDependencies": {
+        "@types/bn.js": "^5.2.0",
         "@types/mocha": "^10.0.7",
+        "@types/node": "^22.15.30",
         "chai": "^5.1.1",
         "mocha": "^10.6.0",
         "ts-mocha": "^10.0.0",
         "ts-node": "^10.9.2",
         "typescript": "^5.3.3"
+    },
+    "resolutions": {
+        "toml": "^4.2.0",
+        "uuid": "^11.1.1",
+        "serialize-javascript": "^7.1.1"
     }
 }

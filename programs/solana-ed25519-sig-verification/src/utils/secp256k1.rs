@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
-use solana_program::instruction::Instruction;
-use solana_program::secp256k1_program::ID as SECP256K1_ID;
+use anchor_lang::solana_program::instruction::Instruction;
+use solana_sdk_ids::secp256k1_program::ID as SECP256K1_ID;
 use crate::error::ErrorCode;
 
 use std::convert::TryInto;

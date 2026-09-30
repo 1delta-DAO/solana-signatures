@@ -1,5 +1,5 @@
-import * as anchor from '@project-serum/anchor';
-import { Program } from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
+import { Program } from '@coral-xyz/anchor';
 import { Signatures } from '../target/types/signatures.ts';
 import { ethers } from 'ethers';
 import * as assert from 'assert';
@@ -10,13 +10,13 @@ import * as assert from 'assert';
 // Ref:  https://ethereum.github.io/yellowpaper/paper.pdf
 
 describe('Ethereum Signatures', () => {
-    const provider = anchor.getProvider();
+    const provider = anchor.AnchorProvider.env();
     anchor.setProvider(provider);
 
     const program = anchor.workspace.Signatures as Program<Signatures>;
 
     // Solana and Ethereum wallets
-    const eth_signer: ethers.Wallet = ethers.Wallet.createRandom();
+    const eth_signer = ethers.Wallet.createRandom();
     const person: anchor.web3.Keypair = anchor.web3.Keypair.generate();
 
     // Stuff
@@ -30,13 +30,13 @@ describe('Ethereum Signatures', () => {
     /// Sample Create Signature function that signs with ethers signMessage
     async function createSignature(name: string, age: number): Promise<string> {
         // keccak256 hash of the message
-        const messageHash: string = ethers.utils.solidityKeccak256(
+        const messageHash: string = ethers.solidityPackedKeccak256(
             ['string', 'uint16'],
             [name, age]
         );
 
         // get hash as Uint8Array of size 32
-        const messageHashBytes: Uint8Array = ethers.utils.arrayify(messageHash);
+        const messageHashBytes: Uint8Array = ethers.getBytes(messageHash);
 
         // Signed message that is actually this:
         // sign(keccak256("\x19Ethereum Signed Message:\n" + len(messageHash) + messageHash)))
@@ -63,7 +63,7 @@ describe('Ethereum Signatures', () => {
         // Full sig consists of 64 bytes + recovery byte
         full_sig = await createSignature(PERSON.name, PERSON.age);
 
-        let full_sig_bytes = ethers.utils.arrayify(full_sig);
+        let full_sig_bytes = ethers.getBytes(full_sig);
         signature = full_sig_bytes.slice(0, 64);
         recoveryId = full_sig_bytes[64] - 27;
         // ^ Why - 27? Check https://ethereum.github.io/yellowpaper/paper.pdf page 27.
@@ -71,8 +71,8 @@ describe('Ethereum Signatures', () => {
         // The message we have to check against is actually this
         // "\x19Ethereum Signed Message:\n" + "32" + keccak256(msg)
         // Since we're hashing with keccak256 the msg len is always 32
-        let msg_digest = ethers.utils.arrayify(
-            ethers.utils.solidityKeccak256(
+        let msg_digest = ethers.getBytes(
+            ethers.solidityPackedKeccak256(
                 ['string', 'uint16'],
                 [PERSON.name, PERSON.age]
             )
@@ -83,9 +83,7 @@ describe('Ethereum Signatures', () => {
         ]);
 
         // Calculated Ethereum Address (20 bytes) from public key (32 bytes)
-        eth_address = ethers.utils
-            .computeAddress(eth_signer.publicKey)
-            .slice(2);
+        eth_address = ethers.computeAddress(eth_signer.signingKey.publicKey).slice(2);
     });
 
     it('Verifies correct Ethereum signature', async () => {
@@ -110,19 +108,18 @@ describe('Ethereum Signatures', () => {
             )
             .add(
                 // Our instruction
-                program.instruction.verifySecp(
-                    ethers.utils.arrayify('0x' + eth_address),
-                    Buffer.from(actual_message),
-                    Buffer.from(signature),
-                    recoveryId,
-                    {
-                        accounts: {
-                            sender: person.publicKey,
-                            ixSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
-                        },
-                        signers: [person],
-                    }
-                )
+                await program.methods
+                    .verifySecp(
+                        Array.from(ethers.getBytes('0x' + eth_address)),
+                        Buffer.from(actual_message),
+                        Array.from(signature),
+                        recoveryId
+                    )
+                    .accountsPartial({
+                        sender: person.publicKey,
+                        ixSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+                    })
+                    .instruction()
             );
 
         try {
@@ -167,19 +164,18 @@ describe('Ethereum Signatures', () => {
             )
             .add(
                 // Our instruction
-                program.instruction.verifySecp(
-                    ethers.utils.arrayify('0x' + chip_eth_address),
-                    Buffer.from(chip_actual_message),
-                    Buffer.from(chip_signature),
-                    chip_recoveryId,
-                    {
-                        accounts: {
-                            sender: person.publicKey,
-                            ixSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
-                        },
-                        signers: [person],
-                    }
-                )
+                await program.methods
+                    .verifySecp(
+                        Array.from(ethers.getBytes('0x' + chip_eth_address)),
+                        Buffer.from(chip_actual_message),
+                        Array.from(chip_signature),
+                        chip_recoveryId
+                    )
+                    .accountsPartial({
+                        sender: person.publicKey,
+                        ixSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+                    })
+                    .instruction()
             );
 
         try {
@@ -219,19 +215,18 @@ describe('Ethereum Signatures', () => {
             )
             .add(
                 // Our instruction
-                program.instruction.verifySecp(
-                    ethers.utils.arrayify('0x' + eth_address),
-                    Buffer.from(actual_message),
-                    Buffer.from(signature),
-                    recoveryId,
-                    {
-                        accounts: {
-                            sender: person.publicKey,
-                            ixSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
-                        },
-                        signers: [person],
-                    }
-                )
+                await program.methods
+                    .verifySecp(
+                        Array.from(ethers.getBytes('0x' + eth_address)),
+                        Buffer.from(actual_message),
+                        Array.from(signature),
+                        recoveryId
+                    )
+                    .accountsPartial({
+                        sender: person.publicKey,
+                        ixSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+                    })
+                    .instruction()
             );
 
         // Send tx
@@ -241,15 +236,10 @@ describe('Ethereum Signatures', () => {
                 tx,
                 [person]
             );
-        } catch (error: any) {
-            // No idea how to catch this error otherwise
-            assert.ok(
-                error
-                    .toString()
-                    .includes(
-                        'Transaction precompile verification failure InvalidAccountIndex'
-                    )
-            );
+        } catch (error: unknown) {
+            // The native precompile (instruction 0) must reject before our program runs.
+            assert.ok(error instanceof anchor.web3.SendTransactionError);
+            assert.match(error.transactionError?.message ?? '', /Instruction 0:/);
             return;
         }
 
@@ -263,19 +253,18 @@ describe('Ethereum Signatures', () => {
         // instruction, our custom instruction will fail to execute.
         let tx = new anchor.web3.Transaction().add(
             // Our instruction
-            program.instruction.verifySecp(
-                ethers.utils.arrayify('0x' + eth_address),
-                Buffer.from(actual_message),
-                Buffer.from(signature),
-                recoveryId,
-                {
-                    accounts: {
-                        sender: person.publicKey,
-                        ixSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
-                    },
-                    signers: [person],
-                }
-            )
+            await program.methods
+                .verifySecp(
+                    Array.from(ethers.getBytes('0x' + eth_address)),
+                    Buffer.from(actual_message),
+                    Array.from(signature),
+                    recoveryId
+                )
+                .accountsPartial({
+                    sender: person.publicKey,
+                    ixSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+                })
+                .instruction()
         );
 
         // Send tx
@@ -311,15 +300,10 @@ describe('Ethereum Signatures', () => {
         const SOMEONE = { name: 'anatoly', age: 48 };
 
         let other_full_sig = await createSignature(SOMEONE.name, SOMEONE.age);
-        let other_full_sig_bytes = ethers.utils.arrayify(other_full_sig);
+        let other_full_sig_bytes = ethers.getBytes(other_full_sig);
         let other_signature = other_full_sig_bytes.slice(0, 64);
         let other_recoveryId = other_full_sig_bytes[64] - 27;
-        let other_msg_digest = ethers.utils.arrayify(
-            ethers.utils.solidityKeccak256(
-                ['string', 'uint16'],
-                [SOMEONE.name, SOMEONE.age]
-            )
-        );
+        let other_msg_digest = ethers.getBytes(ethers.solidityPackedKeccak256(['string', 'uint16'], [SOMEONE.name, SOMEONE.age]));
         let other_actual_message = Buffer.concat([
             Buffer.from('\x19Ethereum Signed Message:\n32'),
             other_msg_digest,
@@ -343,19 +327,18 @@ describe('Ethereum Signatures', () => {
             )
             .add(
                 // Our instruction (fails due to introspection checks)
-                program.instruction.verifySecp(
-                    ethers.utils.arrayify('0x' + eth_address),
-                    Buffer.from(actual_message),
-                    Buffer.from(signature),
-                    recoveryId,
-                    {
-                        accounts: {
-                            sender: person.publicKey,
-                            ixSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
-                        },
-                        signers: [person],
-                    }
-                )
+                await program.methods
+                    .verifySecp(
+                        Array.from(ethers.getBytes('0x' + eth_address)),
+                        Buffer.from(actual_message),
+                        Array.from(signature),
+                        recoveryId
+                    )
+                    .accountsPartial({
+                        sender: person.publicKey,
+                        ixSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+                    })
+                    .instruction()
             );
 
         // Send tx
